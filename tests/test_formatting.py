@@ -48,31 +48,4 @@ def test_progress_bar_bounds():
 
 def test_shorten_strips_newlines():
     assert "\n" not in shorten("a\nb\nc", 100)
-```
 
----
-
-## Deployment walkthrough
-
-```bash
-# On your workstation
-git init hp-ungu-telegram-bot && cd hp-ungu-telegram-bot
-# ... create every file from this document ...
-git add . && git commit -m "Initial hp-ungu implementation"
-git remote add origin git@github.com:<you>/hp-ungu-telegram-bot.git
-git push -u origin main
-```
-
-```bash
-# On the phone, in native Termux
-pkg install -y git
-git clone https://github.com/<you>/hp-ungu-telegram-bot.git ~/hp-ungu-telegram-bot
-cd ~/hp-ungu-telegram-bot
-chmod +x termux/*.sh termux/boot/*.sh
-bash termux/install.sh
-```
-
-Then, from Windows:
-
-```powershell
-ssh -p 8022 CHANGE_ME_TERMUX_USER@CHANGE_ME.tailXXXXXX.ts.net

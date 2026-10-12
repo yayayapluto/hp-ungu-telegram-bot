@@ -63,27 +63,73 @@ fi
 
 # --------------------------------------------------------- 2. Ubuntu distro
 say "detecting installed Ubuntu distributions"
-ROOTFS_BASE="${PREFIX}/var/lib/proot-distro/installed-rootfs"
-DISTROS=()
-if [ -d "$ROOTFS_BASE" ]; then
-    while IFS= read -r line; do
-        [ -n "$line" ] && DISTROS+=("$line")
-    done < <(ls -1 "$ROOTFS_BASE" 2>/dev/null || true)
-fi
 
-if [ "${#DISTROS[@]}" -eq 0 ]; then
-    die "No proot-distro distribution found. Install one first:
-    pkg install proot-distro && proot-distro install ubuntu"
-fi
+# If the operator explicitly named a distro, trust them and verify it works.
+if [ -n "${HP_UNGU_DISTRO:-}" ]; then
+    if proot-distro login "$HP_UNGU_DISTRO" -- /bin/true >/dev/null 2>&1; then
+        DISTRO="$HP_UNGU_DISTRO"
+        say "using operator-specified distribution: $DISTRO"
+    else
+        die "HP_UNGU_DISTRO='$HP_UNGU_DISTRO' is set but proot-distro cannot log into it."
+    fi
+else
+    DISTROS=()
 
-DISTRO="${HP_UNGU_DISTRO:-}"
-if [ -z "$DISTRO" ]; then
+    # Priority 1: ask proot-distro directly. This works across all versions.
+    if command -v proot-distro >/dev/null 2>&1; then
+        while IFS= read -r name; do
+            [ -n "$name" ] || continue
+            if proot-distro login "$name" -- /bin/true >/dev/null 2>&1; then
+                DISTROS+=("$name")
+            fi
+        done < <(proot-distro list 2>/dev/null \
+                 | sed -n 's/^[[:space:]]*\*[[:space:]]*\([A-Za-z0-9_.-]*\).*/\1/p')
+    fi
+
+    # Priority 2: scan every known rootfs location used by any proot-distro era.
+    for base in \
+        "${PREFIX}/var/lib/proot-distro/containers" \
+        "${PREFIX}/var/lib/proot-distro/installed-rootfs" \
+        "${PREFIX}/var/lib/proot-distro/rootfs" \
+        "$HOME/.proot-distro" \
+        "/data/data/com.termux/files/home/.proot-distro"
+    do
+        [ -d "$base" ] || continue
+        while IFS= read -r name; do
+            [ -n "$name" ] || continue
+            case " ${DISTROS[*]} " in *" $name "*) continue ;; esac
+            DISTROS+=("$name")
+        done < <(find "$base" -maxdepth 1 -mindepth 1 -type d -printf '%f\n' 2>/dev/null || true)
+    done
+
+    if [ "${#DISTROS[@]}" -eq 0 ]; then
+        cat >&2 <<'EOF'
+[hp-ungu] No proot-distro distribution detected.
+
+Diagnostics to run manually:
+
+    proot-distro list
+    ls -la "$PREFIX/var/lib/proot-distro/"
+    ls -la "$PREFIX/var/lib/proot-distro/containers/"      2>&1
+    ls -la "$PREFIX/var/lib/proot-distro/installed-rootfs/" 2>&1
+    find "$PREFIX" -maxdepth 6 -type d -name '*ubuntu*' 2>/dev/null
+
+If Ubuntu is installed but this script cannot see it, force it:
+
+    HP_UNGU_DISTRO=ubuntu bash termux/install.sh
+EOF
+        exit 1
+    fi
+
+    say "found distributions: ${DISTROS[*]}"
+
+    DISTRO=""
     for candidate in "${DISTROS[@]}"; do
         if [[ "$candidate" == *ubuntu* ]]; then DISTRO="$candidate"; break; fi
     done
+    [ -n "$DISTRO" ] || DISTRO="${DISTROS[0]}"
+    say "using distribution: $DISTRO"
 fi
-[ -n "$DISTRO" ] || DISTRO="${DISTROS[0]}"
-say "using distribution: $DISTRO"
 
 # ------------------------------------------------------------ 3. .env setup
 if [ ! -f "$ENV_FILE" ]; then
@@ -184,10 +230,8 @@ chmod 600 "$PATHS_FILE"
 
 # --------------------------------------------- 5. Ubuntu dependency install
 say "installing Ubuntu dependencies and building the virtual environment"
-cp "$PROJECT_DIR/.env" "$PROJECT_DIR/.env"   # no-op guard, keeps shared tree
-proot-distro login "$DISTRO" -- /bin/bash -lc \
-    "cp -f '$UBUNTU_PROJECT_DIR/.env.example' '$UBUNTU_PROJECT_DIR/.env' 2>/dev/null || true"
-
+# (no-op guard removed — was aborting under set -e)
+# (.env is copied below via stdin; nothing to do here)
 # The shared .env lives in the Termux tree. If the project was copied instead,
 # push the real .env into Ubuntu.
 if [[ "$UBUNTU_PROJECT_DIR" != "$PROJECT_DIR" ]]; then

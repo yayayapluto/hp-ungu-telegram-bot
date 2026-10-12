@@ -1,34 +1,33 @@
-# Secrets
-.env
-.env.*
+
 !.env.example
-*.pem
-*.key
-id_rsa*
-id_ed25519*
-
-# Runtime state
-data/
-logs/
-*.log
-termux/paths.env
-termux/boot/start.sh.local
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
-venv/
-.pytest_cache/
-.coverage
-htmlcov/
-.mypy_cache/
-.ruff_cache/
-
 # Editors / OS
-.idea/
-.vscode/
+# Python
+# Runtime state
+# Secrets
+*.bak.*
+*.egg-info/
+*.key
+*.log
+*.pem
+*.py[cod]
 *.swp
 .DS_Store
+.coverage
+.env
+.env.*
+.idea/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+.vscode/
 Thumbs.db
+__pycache__/
+data/
+htmlcov/
+id_ed25519*
+id_rsa*
+logs/
+termux/boot/start.sh.local
+termux/paths.env
+venv/

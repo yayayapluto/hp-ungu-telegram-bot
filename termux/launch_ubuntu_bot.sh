@@ -27,6 +27,24 @@ if ! command -v proot-distro >/dev/null 2>&1; then
     exit 127
 fi
 
+# Guard: reject Termux paths. Only Ubuntu-side paths are valid here.
+case "$UBUNTU_PROJECT_DIR" in
+    /root/*|/home/*|/opt/*|/srv/*)
+        ;;
+    *)
+        echo "[hp-ungu] FATAL: UBUNTU_PROJECT_DIR='$UBUNTU_PROJECT_DIR'" >&2
+        echo "[hp-ungu] is not an Ubuntu path. Fix termux/paths.env." >&2
+        exit 2
+        ;;
+esac
+
+if ! proot-distro login "$DISTRO" -- /bin/bash -lc \
+        "[ -x '$UBUNTU_PROJECT_DIR/.venv/bin/python' ]"; then
+    echo "[hp-ungu] FATAL: $UBUNTU_PROJECT_DIR/.venv/bin/python not found." >&2
+    echo "[hp-ungu] Create the venv: see README or run setup_ubuntu_inner.sh." >&2
+    exit 2
+fi
+
 echo "[hp-ungu] entering $DISTRO at $UBUNTU_PROJECT_DIR"
 
 exec proot-distro login "$DISTRO" -- /bin/bash -lc \
